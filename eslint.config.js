@@ -6,9 +6,16 @@ import svelte from 'eslint-plugin-svelte';
 import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import ts from 'typescript-eslint';
-import svelteConfig from './svelte.config.js';
 
 const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
+
+// Inline svelte config shared across workspaces — both apps/web and
+// packages/design-system run in runes mode, so this is enough for the parser.
+const svelteConfig = {
+	compilerOptions: {
+		runes: ({ filename }) => (filename.split(/[/\\]/).includes('node_modules') ? undefined : true)
+	}
+};
 
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),

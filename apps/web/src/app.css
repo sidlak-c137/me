@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+@import '@me/design-system/css';
+
+/* Pick up utility classes used inside the design-system package so Tailwind
+   emits them. Points at source (not dist) so the app builds without requiring
+   a fresh DS build. */
+@source '../../../packages/design-system/src/lib/**/*.{svelte,ts,js}';
+
+/* ────────────────────────────────────────────────────────────
+   App-specific base
+   ──────────────────────────────────────────────────────────── */
+@layer base {
+	@media (pointer: fine) {
+		html,
+		html * {
+			cursor: none !important;
+		}
+	}
+}

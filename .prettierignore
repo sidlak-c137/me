@@ -6,4 +6,6 @@ bun.lock
 bun.lockb
 
 # Miscellaneous
-/static/
+apps/web/static/
+packages/*/dist/
+**/.svelte-kit/
