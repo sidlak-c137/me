@@ -580,8 +580,17 @@
 			const onLeave = () => {
 				uniforms.uCursorActive.value = 0;
 			};
+			// Touch pointers don't dispatch pointerleave when the finger
+			// lifts, so without this the crater would freeze at the last
+			// touch position. Gated on pointerType so desktop mouse clicks
+			// don't flicker the crater off on every pointerup.
+			const onPointerEnd = (e: PointerEvent) => {
+				if (e.pointerType !== 'mouse') onLeave();
+			};
 			window.addEventListener('pointermove', onMove, { passive: true });
 			window.addEventListener('pointerleave', onLeave);
+			window.addEventListener('pointerup', onPointerEnd, { passive: true });
+			window.addEventListener('pointercancel', onPointerEnd, { passive: true });
 
 			function resize() {
 				if (!renderer || !host) return;
@@ -900,6 +909,8 @@
 				raf = 0;
 				window.removeEventListener('pointermove', onMove);
 				window.removeEventListener('pointerleave', onLeave);
+				window.removeEventListener('pointerup', onPointerEnd);
+				window.removeEventListener('pointercancel', onPointerEnd);
 				ro?.disconnect();
 				themeObs.disconnect();
 				quad.dispose();
@@ -921,7 +932,7 @@
 	});
 </script>
 
-<div bind:this={host} class="relative h-full w-full overflow-hidden">
+<div bind:this={host} class="relative h-full w-full touch-none overflow-hidden">
 	<canvas
 		bind:this={canvas}
 		class="absolute inset-0 h-full w-full"
