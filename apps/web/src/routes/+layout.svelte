@@ -1,6 +1,5 @@
 <script lang="ts">
 	import '../app.css';
-	import favicon from '$lib/assets/favicon.svg';
 	import { Cursor } from '@me/design-system';
 	import Header from '$lib/components/Header.svelte';
 	import { pageTransition } from '$lib/transition.svelte';
@@ -8,7 +7,7 @@
 	let { children } = $props();
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head><link rel="icon" href="/favicon.svg" type="image/svg+xml" /></svelte:head>
 <Cursor />
 <div class="grid min-h-dvh grid-rows-[auto_minmax(0,1fr)] bg-background text-foreground">
 	<Header />
