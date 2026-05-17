@@ -77,10 +77,11 @@
 				</p>
 
 				<div
-					class="mt-10 flex flex-wrap items-center gap-3"
+					class="mt-10 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center"
 					in:fly={{ y: 16, duration: 700, delay: 360, easing: quintOut }}
 				>
 					<Button variant="accent" href="/work">Explorations →</Button>
+					<div class="flex flex-wrap items-center gap-3">
 					<Button
 						variant="secondary"
 						class="px-2.5!"
@@ -149,6 +150,7 @@
 					>
 						<Mail class="h-4 w-4" aria-hidden="true" />
 					</Button>
+					</div>
 				</div>
 			{/if}
 		</div>

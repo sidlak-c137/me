@@ -287,7 +287,6 @@
 		uniform vec3 uLight;
 		uniform vec3 uPeakTint;
 		uniform float uPeakStrength;
-		uniform float uGrain;
 		uniform float uIntroProgress;
 		uniform float uIntroStartHeight;
 		// Per-mount terrain parameters. uPeaks.xy = centre, .z = height,
@@ -482,15 +481,6 @@
 				step(vec3(0.0031308), col)
 			);
 
-			// Sand grain — applied *after* sRGB encode so its perceptual
-			// magnitude is constant across themes. If added in linear
-			// space before the encode, the gamma curve's steep slope
-			// near zero would amplify the same delta ~7× in dark mode
-			// (linear ≈ 0.025) compared to light mode (linear ≈ 0.97),
-			// turning subtle paper texture into visible static.
-			float grain = hash(uv * uResolution.xy * 0.5) - 0.5;
-			outCol += grain * uGrain;
-
 			gl_FragColor = vec4(outCol, 1.0);
 		}
 	`;
@@ -507,6 +497,11 @@
 		(async () => {
 			const THREE = await import('three');
 			if (cancelled) return;
+
+			// Coarse-pointer (touch) devices: no hover means the cursor
+			// crater never activates, so skip registering the global
+			// pointer listeners. Mirrors Cursor.svelte's detection.
+			const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
 
 			renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
 			renderer.setClearColor(0x000000, 0);
@@ -542,7 +537,6 @@
 				uLight: { value: new THREE.Color('#fdfcf6') },
 				uPeakTint: { value: new THREE.Color('#bcae84') },
 				uPeakStrength: { value: 0.0 },
-				uGrain: { value: 0.004 },
 				uIntroProgress: { value: 0.0 },
 				uIntroStartHeight: { value: introStartHeight },
 				// Per-mount terrain: peaks packed as (x, y, height, width).
@@ -576,8 +570,10 @@
 			const onLeave = () => {
 				uniforms.uCursorActive.value = 0;
 			};
-			window.addEventListener('pointermove', onMove, { passive: true });
-			window.addEventListener('pointerleave', onLeave);
+			if (!coarsePointer) {
+				window.addEventListener('pointermove', onMove, { passive: true });
+				window.addEventListener('pointerleave', onLeave);
+			}
 
 			function resize() {
 				if (!renderer || !host) return;
@@ -645,7 +641,6 @@
 					cssColorApply(uniforms.uBase.value, '--background', '#332e26');
 					cssColorApply(uniforms.uDeep.value, '--color-paper-950', '#1e1a14');
 					cssColorApply(uniforms.uLight.value, '--color-paper-700', '#5b554b');
-					uniforms.uGrain.value = 0.005;
 					uniforms.uPeakStrength.value = 0.0;
 				} else {
 					cssColorApply(uniforms.uBase.value, '--color-background', '#fdfcf6');
@@ -665,7 +660,6 @@
 						'#c5b692'
 					);
 					uniforms.uPeakStrength.value = 1.0;
-					uniforms.uGrain.value = 0.004;
 				}
 			}
 			readColors();
