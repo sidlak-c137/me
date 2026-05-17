@@ -2,6 +2,7 @@
 	import { fly } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 	import Mail from '@lucide/svelte/icons/mail';
+	import Seo from '$lib/components/Seo.svelte';
 	import { pageTransition } from '$lib/transition.svelte';
 
 	// Entrance transitions only fire when this page is reached via a
@@ -95,12 +96,17 @@
 	];
 </script>
 
-<svelte:head>
-	<title>Elsewhere — Sidharth Lakshmanan</title>
-	<meta name="description" content="Find Sidharth Lakshmanan elsewhere on the web." />
-</svelte:head>
+<Seo
+	title="Elsewhere"
+	description="Find Sidharth Lakshmanan elsewhere on the web — LinkedIn, X, GitHub, and email."
+/>
 
 <main class="relative h-full min-h-0 overflow-hidden bg-background text-foreground">
+	<!-- Visually hidden H1 so the page carries a real top-level heading for
+	     crawlers and screen readers; the visible layout is a constellation
+	     of links rather than a titled section, so the H1 doesn't appear on
+	     screen but still anchors the document outline. -->
+	<h1 class="sr-only">Elsewhere — Sidharth Lakshmanan on the web</h1>
 	<section class="relative z-10 h-full px-6 md:px-12 lg:px-20">
 		<ul class="scatter relative mx-auto h-full w-full list-none md:max-w-5xl">
 			{#each links as link, i (link.label)}
