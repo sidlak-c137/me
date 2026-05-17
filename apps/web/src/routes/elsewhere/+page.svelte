@@ -5,7 +5,7 @@
 	import { pageTransition } from '$lib/transition.svelte';
 
 	// Entrance transitions only fire when this page is reached via a
-	// page-transition navigation (e.g., the home page's Contact button).
+	// page-transition navigation (e.g., the home page's Elsewhere button).
 	// On a direct load or refresh `consumeIntro()` returns false, so the
 	// content paints in place with no fly/stagger. `noIntro` is a no-op
 	// transition function used in lieu of `fly` when we don't animate.
@@ -96,8 +96,8 @@
 </script>
 
 <svelte:head>
-	<title>Contact — Sidharth Lakshmanan</title>
-	<meta name="description" content="Get in touch with Sidharth Lakshmanan." />
+	<title>Elsewhere — Sidharth Lakshmanan</title>
+	<meta name="description" content="Find Sidharth Lakshmanan elsewhere on the web." />
 </svelte:head>
 
 <main class="relative h-[calc(100dvh-5rem)] overflow-hidden bg-background text-foreground">

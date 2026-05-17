@@ -64,14 +64,14 @@
 					     play on this page first, then hand off mid-sweep. -->
 					<Button
 						variant="primary"
-						href="/contact"
+						href="/elsewhere"
 						onclick={(e: MouseEvent) => {
 							if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
 							e.preventDefault();
-							pageTransition.navigate('/contact');
+							pageTransition.navigate('/elsewhere');
 						}}
 					>
-						Contact
+						Elsewhere
 					</Button>
 				</div>
 			{/if}
