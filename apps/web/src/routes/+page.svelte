@@ -38,13 +38,13 @@
 			></div>
 			{#if mounted}
 				<h1
-					class="font-serif text-6xl leading-[0.95] italic md:text-7xl lg:text-[5.5rem]"
+					class="font-serif text-6xl leading-[0.95] italic select-none md:text-7xl lg:text-[5.5rem]"
 					in:fly={{ y: 24, duration: 700, delay: 80, easing: quintOut }}
 				>
 					<span class="text-accent">Sid</span>harth<br /><span class="text-accent">Lak</span>shmanan
 				</h1>
 				<p
-					class="text-md mt-8 max-w-md leading-relaxed text-muted-foreground md:text-lg"
+					class="text-md mt-8 max-w-md leading-relaxed text-muted-foreground select-none md:text-lg"
 					in:fly={{ y: 20, duration: 700, delay: 220, easing: quintOut }}
 				>
 					I'm an engineer who thrives at materializing ideas into products. You can find me as a

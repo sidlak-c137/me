@@ -569,28 +569,65 @@
 			let cursorX = 0.5;
 			let cursorY = 0.5;
 
-			const onMove = (e: PointerEvent) => {
+			const setCursorFromClient = (clientX: number, clientY: number) => {
 				const r = host.getBoundingClientRect();
 				if (r.width <= 0 || r.height <= 0) return;
-				cursorTargetX = clamp01((e.clientX - r.left) / r.width);
+				cursorTargetX = clamp01((clientX - r.left) / r.width);
 				// UV origin is bottom-left in GL; flip Y to match pointer space.
-				cursorTargetY = clamp01(1.0 - (e.clientY - r.top) / r.height);
+				cursorTargetY = clamp01(1.0 - (clientY - r.top) / r.height);
 				uniforms.uCursorActive.value = 1;
+			};
+			const onMove = (e: PointerEvent) => {
+				// Touch is handled by the dedicated touch listeners below
+				// (pointermove was unreliable on Android during drags), so
+				// the pointer path is mouse-only here. iOS still synthesises
+				// pointermove from touches, so the guard prevents double
+				// updates from the same gesture.
+				if (e.pointerType === 'touch') return;
+				setCursorFromClient(e.clientX, e.clientY);
 			};
 			const onLeave = () => {
 				uniforms.uCursorActive.value = 0;
 			};
-			// Touch pointers don't dispatch pointerleave when the finger
-			// lifts, so without this the crater would freeze at the last
-			// touch position. Gated on pointerType so desktop mouse clicks
-			// don't flicker the crater off on every pointerup.
-			const onPointerEnd = (e: PointerEvent) => {
-				if (e.pointerType !== 'mouse') onLeave();
-			};
 			window.addEventListener('pointermove', onMove, { passive: true });
 			window.addEventListener('pointerleave', onLeave);
-			window.addEventListener('pointerup', onPointerEnd, { passive: true });
-			window.addEventListener('pointercancel', onPointerEnd, { passive: true });
+
+			// Touch path: bypass pointer events entirely. Pointer events on
+			// Android Chrome stop firing mid-drag once the browser decides
+			// the gesture might be a scroll/fling, even with
+			// `touch-action: none` on every ancestor — only direct
+			// touchmove with `{ passive: false }` + preventDefault reliably
+			// keeps the gesture ours for the full lifetime of the touch.
+			// Listeners are on `window` rather than `host` because the
+			// hero `<section>` sits at z-10 over the topo and is the
+			// actual hit-test target for touches; only the window root is
+			// in every subtree's bubble path. The first touch in
+			// `e.touches` is sufficient; multi-touch is ignored so a
+			// second finger doesn't yank the crater around.
+			const onTouchStart = (e: TouchEvent) => {
+				const t = e.touches[0];
+				if (!t) return;
+				// Don't hijack taps on real interactive elements (buttons,
+				// links, etc.) — let those receive the synthesised click.
+				const target = e.target as Element | null;
+				if (target && target.closest?.('a, button, input, textarea, select, [role="button"]')) {
+					return;
+				}
+				setCursorFromClient(t.clientX, t.clientY);
+				e.preventDefault();
+			};
+			const onTouchMove = (e: TouchEvent) => {
+				const t = e.touches[0];
+				if (!t) return;
+				setCursorFromClient(t.clientX, t.clientY);
+				e.preventDefault();
+			};
+			const onTouchEnd = () => {
+				onLeave();
+			};
+			window.addEventListener('touchstart', onTouchStart, { passive: false });
+			window.addEventListener('touchmove', onTouchMove, { passive: false });
+			window.addEventListener('touchend', onTouchEnd, { passive: true });
 
 			function resize() {
 				if (!renderer || !host) return;
@@ -909,8 +946,9 @@
 				raf = 0;
 				window.removeEventListener('pointermove', onMove);
 				window.removeEventListener('pointerleave', onLeave);
-				window.removeEventListener('pointerup', onPointerEnd);
-				window.removeEventListener('pointercancel', onPointerEnd);
+				window.removeEventListener('touchstart', onTouchStart);
+				window.removeEventListener('touchmove', onTouchMove);
+				window.removeEventListener('touchend', onTouchEnd);
 				ro?.disconnect();
 				themeObs.disconnect();
 				quad.dispose();
@@ -932,7 +970,11 @@
 	});
 </script>
 
-<div bind:this={host} class="relative h-full w-full touch-none overflow-hidden">
+<div
+	bind:this={host}
+	class="relative h-full w-full touch-none overflow-hidden select-none"
+	style="-webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;"
+>
 	<canvas
 		bind:this={canvas}
 		class="absolute inset-0 h-full w-full"

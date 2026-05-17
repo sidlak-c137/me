@@ -37,4 +37,9 @@
 			cursor: none !important;
 		}
 	}
+
+	button,
+	a[role='button'] {
+		user-select: none;
+	}
 }
