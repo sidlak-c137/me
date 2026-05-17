@@ -120,16 +120,23 @@
 		return x - Math.floor(x);
 	}
 
+	// Dave Hoskins' "Hash Without Sine" 11. Multiplies p only by small
+	// constants (0.1031, 33.33), so every intermediate value stays within
+	// mediump's accurate range regardless of input magnitude — required
+	// because mobile fragment-stage "highp" silently falls back to
+	// mediump on several drivers and the old hash (multiplier 123.34 /
+	// 456.21 on FBM inputs ~150) produced quantised height noise that
+	// dFdx amplified into broken vertical seams in the contour emboss.
 	function jsHash(px: number, py: number): number {
-		// p = fract(p * vec2(123.34, 456.21))
-		let x = fract(px * 123.34);
-		let y = fract(py * 456.21);
-		// p += dot(p, p + 45.32)  — dot is scalar, added to both x and y
-		const d = x * (x + 45.32) + y * (y + 45.32);
-		x += d;
-		y += d;
-		// return fract(p.x * p.y)
-		return fract(x * y);
+		let p3x = fract(px * 0.1031);
+		let p3y = fract(py * 0.1031);
+		let p3z = fract(px * 0.1031);
+		// dot(p3, p3.yzx + 33.33)
+		const d = p3x * (p3y + 33.33) + p3y * (p3z + 33.33) + p3z * (p3x + 33.33);
+		p3x += d;
+		p3y += d;
+		p3z += d;
+		return fract((p3x + p3y) * p3z);
 	}
 
 	function jsNoise(px: number, py: number): number {
@@ -297,10 +304,18 @@
 		uniform vec4 uPeaks[10];
 		uniform vec2 uTilt;
 
+		// Dave Hoskins' "Hash Without Sine" 11. Every multiply happens
+		// on values already in [0, 1), so the result stays precise
+		// regardless of input magnitude. Necessary on mobile because
+		// fragment-stage highp silently falls back to mediump on several
+		// drivers; the older multiplier-123 hash quantised badly on the
+		// high octaves of fbm, and dFdx of that quantised height field
+		// rendered as discontinuous vertical segments in the contour
+		// emboss.
 		float hash(vec2 p) {
-			p = fract(p * vec2(123.34, 456.21));
-			p += dot(p, p + 45.32);
-			return fract(p.x * p.y);
+			vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+			p3 += dot(p3, p3.yzx + 33.33);
+			return fract((p3.x + p3.y) * p3.z);
 		}
 		float noise(vec2 p) {
 			vec2 i = floor(p); vec2 f = fract(p);
@@ -498,11 +513,6 @@
 			const THREE = await import('three');
 			if (cancelled) return;
 
-			// Coarse-pointer (touch) devices: no hover means the cursor
-			// crater never activates, so skip registering the global
-			// pointer listeners. Mirrors Cursor.svelte's detection.
-			const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-
 			renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
 			renderer.setClearColor(0x000000, 0);
 
@@ -570,10 +580,8 @@
 			const onLeave = () => {
 				uniforms.uCursorActive.value = 0;
 			};
-			if (!coarsePointer) {
-				window.addEventListener('pointermove', onMove, { passive: true });
-				window.addEventListener('pointerleave', onLeave);
-			}
+			window.addEventListener('pointermove', onMove, { passive: true });
+			window.addEventListener('pointerleave', onLeave);
 
 			function resize() {
 				if (!renderer || !host) return;
