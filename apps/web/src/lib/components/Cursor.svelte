@@ -70,6 +70,18 @@
 			return { el: null, mode: 'free' };
 		};
 
+		const findHoveredInteractive = (): { el: HTMLElement | null; mode: Mode } => {
+			const hovered = Array.from(document.querySelectorAll<HTMLElement>(':hover'));
+			for (let i = hovered.length - 1; i >= 0; i--) {
+				const cur = hovered[i];
+				const c = cur.dataset?.cursor;
+				if (c === 'ignore') return { el: null, mode: 'free' };
+				if (c === 'text' && isInteractive(cur)) return { el: cur, mode: 'text' };
+				if (cur.matches?.(SELECTOR) && isInteractive(cur)) return { el: cur, mode: 'morph' };
+			}
+			return { el: null, mode: 'free' };
+		};
+
 		const attachOutline = (el: HTMLElement, m: 'morph' | 'text') => {
 			let host: HTMLElement = el;
 			let proxy = false;
@@ -156,6 +168,26 @@
 			if (el && (nextMode === 'morph' || nextMode === 'text')) attachOutline(el, nextMode);
 		};
 
+		const commitInitialHover = () => {
+			const { el, mode: nextMode } = findHoveredInteractive();
+			if (!el || nextMode === 'free') return;
+
+			// A stationary pointer's coordinates are not exposed on refresh, but CSS
+			// :hover is. Seed the morph origin from the hovered element until the first
+			// real mouse event provides exact coordinates.
+			const rect = el.getBoundingClientRect();
+			const seededX = rect.left + rect.width / 2;
+			const seededY = rect.top + rect.height / 2;
+			lastX = targetDotX = dotX = ringX = seededX;
+			lastY = targetDotY = dotY = ringY = seededY;
+			velocity = 0;
+			pendingEl = el;
+			pendingMode = nextMode;
+			pendingSince = performance.now() - DWELL_MS;
+
+			commit(el, nextMode);
+		};
+
 		const recompute = () => {
 			const now = performance.now();
 			const { el, mode: nextMode } =
@@ -176,7 +208,7 @@
 			visible = true;
 			const now = performance.now();
 			const dt = lastMoveTime === 0 ? 16 : Math.max(now - lastMoveTime, 1);
-			const inst = Math.hypot(e.clientX - lastX, e.clientY - lastY) / dt;
+			const inst = lastMoveTime === 0 ? 0 : Math.hypot(e.clientX - lastX, e.clientY - lastY) / dt;
 			velocity = velocity * 0.5 + inst * 0.5;
 			lastMoveTime = now;
 			lastX = e.clientX;
@@ -213,6 +245,8 @@
 		window.addEventListener('scroll', recompute, { passive: true, capture: true });
 		window.addEventListener('resize', recompute);
 
+		const initialHoverRaf = requestAnimationFrame(commitInitialHover);
+
 		let raf = 0;
 		const tick = () => {
 			const wasFast = velocity > FAST_SPEED;
@@ -247,6 +281,7 @@
 		raf = requestAnimationFrame(tick);
 
 		return () => {
+			cancelAnimationFrame(initialHoverRaf);
 			cancelAnimationFrame(raf);
 			detachOutline();
 			window.removeEventListener('mousemove', onMove);

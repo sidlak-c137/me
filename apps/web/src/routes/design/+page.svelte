@@ -1,17 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { Button, Input, Link } from '@me/design-system';
+	import { Button, Input, Link, useTheme } from '@me/design-system';
 
-	let theme = $state<'light' | 'dark'>('light');
-
-	if (typeof document !== 'undefined') {
-		theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-	}
-
-	$effect(() => {
-		document.documentElement.classList.toggle('dark', theme === 'dark');
-		localStorage.setItem('theme', theme);
-	});
+	const theme = useTheme();
 
 	const sections = [
 		{ no: '01', id: 'color', label: 'Color' },
@@ -133,13 +124,18 @@
 					/design · v0.1
 				</span>
 				<button
-					onclick={() => (theme = theme === 'light' ? 'dark' : 'light')}
+					onclick={theme.toggle}
 					data-cursor="hover"
 					class="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1.5 font-mono text-[0.7rem] tracking-[0.18em] text-muted-foreground uppercase transition-colors hover:text-foreground"
 					aria-label="Toggle color theme"
 				>
-					<span aria-hidden="true">{theme === 'light' ? '☾' : '☀'}</span>
-					{theme === 'light' ? 'dark' : 'light'}
+					<!-- CSS-gated label keeps SSR and client markup identical;
+					     reading reactive theme state pre-mount caused hydration
+					     mismatches. -->
+					<span aria-hidden="true" class="dark:hidden">☾</span>
+					<span aria-hidden="true" class="hidden dark:inline">☀</span>
+					<span class="dark:hidden">dark</span>
+					<span class="hidden dark:inline">light</span>
 				</button>
 			</div>
 		</div>

@@ -12,7 +12,13 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},
 	"dependencies": {
-		"@me/design-system": "workspace:*"
+		"@fontsource/alegreya": "^5.2.8",
+		"@fontsource/alegreya-sc": "^5.2.8",
+		"@fontsource/jetbrains-mono": "^5.2.8",
+		"@fontsource/lato": "^5.2.7",
+		"@lucide/svelte": "^1.16.0",
+		"@me/design-system": "workspace:*",
+		"three": "^0.169.0"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^5.5.4",
@@ -20,6 +26,7 @@
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@tailwindcss/vite": "^4.2.2",
 		"@types/node": "^22",
+		"@types/three": "^0.169.0",
 		"svelte": "^5.55.2",
 		"svelte-check": "^4.4.6",
 		"tailwindcss": "^4.2.2",
