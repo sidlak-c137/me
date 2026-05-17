@@ -100,7 +100,7 @@
 	<meta name="description" content="Find Sidharth Lakshmanan elsewhere on the web." />
 </svelte:head>
 
-<main class="relative h-[calc(100dvh-5rem)] overflow-hidden bg-background text-foreground">
+<main class="relative h-full min-h-0 overflow-hidden bg-background text-foreground">
 	<section class="relative z-10 h-full px-6 md:px-12 lg:px-20">
 		<ul class="scatter relative mx-auto h-full w-full list-none md:max-w-5xl">
 			{#each links as link, i (link.label)}

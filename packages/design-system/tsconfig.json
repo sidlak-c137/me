@@ -13,9 +13,8 @@
 		"allowJs": true,
 		"checkJs": true,
 		"sourceMap": true,
-		"declaration": true,
-		"rootDir": "src/lib",
-		"outDir": "dist"
+		"noEmit": true
 	},
-	"include": ["src/**/*"]
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist"]
 }

@@ -19,7 +19,7 @@
 	<meta name="description" content="Engineering with taste and care @ Reve AI." />
 </svelte:head>
 
-<main class="relative h-[calc(100dvh-5rem)] overflow-hidden bg-background text-foreground">
+<main class="relative h-full min-h-0 overflow-hidden bg-background text-foreground">
 	<!-- Topo-sand surface as a full-bleed background. Fixed so it stays in
 	     place under any scrolling content; -z-0 keeps it behind the hero.
 	     Spans the full viewport (not just main) so the surface still reads

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import Cursor from '$lib/components/Cursor.svelte';
+	import { Cursor } from '@me/design-system';
 	import Header from '$lib/components/Header.svelte';
 	import { pageTransition } from '$lib/transition.svelte';
 
@@ -10,8 +10,10 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 <Cursor />
-<Header />
-{@render children()}
+<div class="grid min-h-dvh grid-rows-[auto_minmax(0,1fr)] bg-background text-foreground">
+	<Header />
+	{@render children()}
+</div>
 
 <!-- Cross-page wash. Mounted at the layout level so a single keyframe run
      spans both the originating page and the destination — the route swap
