@@ -25,3 +25,34 @@ export function absoluteUrl(path: string): string {
 	const suffix = path.startsWith('/') ? path : `/${path}`;
 	return `${base}${suffix}`;
 }
+
+// ────────────────────────────────────────────────────────────────────────
+// Route registry
+// ────────────────────────────────────────────────────────────────────────
+// Single source of truth for the public top-level routes the app serves.
+// Consumed by the sitemap (URL list + change metadata) and the header
+// (breadcrumb whitelist that gates which path segments are rendered as
+// trusted content vs. discarded). Adding a new route here picks it up in
+// both surfaces — important since a route the sitemap advertises but the
+// header refuses to render would feel broken.
+
+export type RouteEntry = {
+	path: '/' | `/${string}`;
+	changefreq: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
+	priority: string;
+};
+
+export const ROUTES: ReadonlyArray<RouteEntry> = [
+	{ path: '/', changefreq: 'monthly', priority: '1.0' },
+	{ path: '/elsewhere', changefreq: 'yearly', priority: '0.7' },
+	{ path: '/explorations', changefreq: 'weekly', priority: '0.6' }
+];
+
+// Top-level URL segments (post-leading-slash). Used by the header to
+// decide whether to render a breadcrumb crumb for the current pathname —
+// anything outside this set is treated as user-controlled junk (404s,
+// crafted phishing URLs, etc.) and the header collapses to just the
+// root crumb instead of reflecting attacker text back into the chrome.
+export const KNOWN_SEGMENTS: ReadonlySet<string> = new Set(
+	ROUTES.map((r) => r.path.replace(/^\//, '')).filter((seg) => seg.length > 0)
+);

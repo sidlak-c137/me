@@ -1,15 +1,10 @@
-import { SITE_URL } from '$lib/seo';
+import { ROUTES, SITE_URL } from '$lib/seo';
 
 // Prerendered alongside the rest of the site so the sitemap ships as a
-// static file under the same origin as the pages it lists. Update the
-// `pages` list when adding a new top-level route.
+// static file under the same origin as the pages it lists. The URL list
+// is sourced from `$lib/seo` so adding a route is a one-line change that
+// updates both the sitemap and the header breadcrumb whitelist in lockstep.
 export const prerender = true;
-
-const pages: Array<{ path: string; changefreq: string; priority: string }> = [
-	{ path: '/', changefreq: 'monthly', priority: '1.0' },
-	{ path: '/elsewhere', changefreq: 'yearly', priority: '0.7' },
-	{ path: '/explorations', changefreq: 'weekly', priority: '0.6' }
-];
 
 export function GET() {
 	const lastmod = new Date().toISOString().split('T')[0];
@@ -17,16 +12,14 @@ export function GET() {
 
 	const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${pages
-	.map(
-		(p) => `	<url>
+${ROUTES.map(
+	(p) => `	<url>
 		<loc>${origin}${p.path}</loc>
 		<lastmod>${lastmod}</lastmod>
 		<changefreq>${p.changefreq}</changefreq>
 		<priority>${p.priority}</priority>
 	</url>`
-	)
-	.join('\n')}
+).join('\n')}
 </urlset>
 `;
 
