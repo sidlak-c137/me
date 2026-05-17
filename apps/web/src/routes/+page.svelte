@@ -86,6 +86,17 @@
 				     handler short-circuits the default navigation so the wash can
 				     play on this page first, then hand off mid-sweep. -->
 				<Button
+					variant="accent"
+					href="/explorations"
+					onclick={(e: MouseEvent) => {
+						if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+						e.preventDefault();
+						pageTransition.navigate('/explorations');
+					}}
+				>
+					Explorations →
+				</Button>
+				<Button
 					variant="primary"
 					href="/elsewhere"
 					onclick={(e: MouseEvent) => {

@@ -7,7 +7,8 @@ export const prerender = true;
 
 const pages: Array<{ path: string; changefreq: string; priority: string }> = [
 	{ path: '/', changefreq: 'monthly', priority: '1.0' },
-	{ path: '/elsewhere', changefreq: 'yearly', priority: '0.7' }
+	{ path: '/elsewhere', changefreq: 'yearly', priority: '0.7' },
+	{ path: '/explorations', changefreq: 'weekly', priority: '0.6' }
 ];
 
 export function GET() {
