@@ -21,14 +21,30 @@
 	let raf = 0;
 	let ro: ResizeObserver | null = null;
 
-	// ── JS terrain (mirrors the GLSL terrain function exactly) ────────
-	// Peaks and tilt are randomised per-mount (i.e. on refresh) and
-	// shared with the shader via uniforms so JS car physics and GPU
-	// rendering agree on the height field. Fixed slot count matches
-	// the static loop bounds in the fragment shader; unused slots
-	// are filled with inert peaks (height 0, far off-screen).
+	// ── JS terrain -----------------------------------------------------
+	// Peaks and tilt are randomised per-mount (i.e. on refresh) and shared
+	// with the shader via uniforms. `jsTerrain` mirrors the shader height
+	// field for intro setup; car steering uses an analytical large-scale
+	// gradient cache so it does not have to finite-difference the full noisy
+	// terrain four times every frame. Fixed slot count matches the static
+	// loop bounds in the fragment shader; unused slots are inert.
 	const NUM_PEAKS = 10;
-	let PEAKS: [number, number, number, number][] = [];
+	const MAX_RIDGES = (NUM_PEAKS * (NUM_PEAKS - 1)) / 2;
+	const FBM_OCTAVES = 5;
+	type Peak = [number, number, number, number];
+	type ActivePeak = { x: number; y: number; h: number; invW2: number };
+	type Ridge = {
+		ax: number;
+		ay: number;
+		abx: number;
+		aby: number;
+		invAb2: number;
+		h: number;
+		invW2: number;
+	};
+	let PEAKS: Peak[] = [];
+	let ACTIVE_PEAKS: ActivePeak[] = [];
+	let RIDGES: Ridge[] = [];
 	// Global linear tilt added to the height field. Its two components
 	// must both be non-zero so contour lines far from peaks (where the
 	// tilt dominates) cross every edge at an oblique angle — a contour
@@ -43,6 +59,37 @@
 	// terrain would feel cramped on tall viewports and empty on wide
 	// ones. All knobs collapse onto a single density target — every
 	// other parameter follows from it via dimensional analysis.
+	function rebuildTerrainCache() {
+		ACTIVE_PEAKS = PEAKS.filter(([, , h]) => h > 0).map(([x, y, h, w]) => ({
+			x,
+			y,
+			h,
+			invW2: 1 / (w * w)
+		}));
+		RIDGES = [];
+		for (let i = 0; i < ACTIVE_PEAKS.length; i++) {
+			for (let j = i + 1; j < ACTIVE_PEAKS.length; j++) {
+				const a = ACTIVE_PEAKS[i];
+				const b = ACTIVE_PEAKS[j];
+				const abx = b.x - a.x;
+				const aby = b.y - a.y;
+				const ab2 = abx * abx + aby * aby;
+				if (ab2 < 1e-12 || ab2 > 0.75 * 0.75) continue;
+				const segLen = Math.sqrt(ab2);
+				const ridgeW = 0.1 + segLen * 0.05;
+				RIDGES.push({
+					ax: a.x,
+					ay: a.y,
+					abx,
+					aby,
+					invAb2: 1 / ab2,
+					h: Math.min(a.h, b.h) * 0.22,
+					invW2: 1 / (ridgeW * ridgeW)
+				});
+			}
+		}
+	}
+
 	function generateTerrainParams(aspect: number) {
 		// Inner box: leave a margin so peak flanks don't get clipped
 		// at the visible edge and FBM detail dominates near borders.
@@ -76,7 +123,7 @@
 		const PEAK_SLOPE = 3.0;
 		const SLOPE_K = 0.858; // exp(-1/2) · √2 ≈ peak-slope coefficient
 
-		const peaks: [number, number, number, number][] = [];
+		const peaks: Peak[] = [];
 		for (let attempt = 0; attempt < 3000 && peaks.length < targetCount; attempt++) {
 			const x = (Math.random() * 2 - 1) * bx;
 			const y = (Math.random() * 2 - 1) * by;
@@ -113,6 +160,7 @@
 		const tx = (Math.random() < 0.5 ? -1 : 1) * (0.1 + Math.random() * 0.1);
 		const ty = (Math.random() < 0.5 ? -1 : 1) * (0.1 + Math.random() * 0.1);
 		TILT = [tx, ty];
+		rebuildTerrainCache();
 	}
 
 	/** Mirrors the GLSL hash exactly: fract(x) = x - floor(x) */
@@ -156,7 +204,7 @@
 	function jsFbm(px: number, py: number): number {
 		let v = 0,
 			a = 0.5;
-		for (let i = 0; i < 5; i++) {
+		for (let i = 0; i < FBM_OCTAVES; i++) {
 			v += a * jsNoise(px, py);
 			px *= 2.07;
 			py *= 2.07;
@@ -169,34 +217,22 @@
 		// Global tilt — mirrors `dot(uTilt, p)` in the shader.
 		let h = TILT[0] * px + TILT[1] * py;
 		// Gaussian peaks
-		for (const [cx, cy, pH, pW] of PEAKS) {
-			const dx = px - cx,
-				dy = py - cy;
-			h += pH * Math.exp(-(dx * dx + dy * dy) / (pW * pW));
+		for (const peak of ACTIVE_PEAKS) {
+			const dx = px - peak.x,
+				dy = py - peak.y;
+			h += peak.h * Math.exp(-(dx * dx + dy * dy) * peak.invW2);
 		}
 		// Ridgelines between nearby peaks
-		for (let i = 0; i < PEAKS.length; i++) {
-			for (let j = i + 1; j < PEAKS.length; j++) {
-				const [ax, ay, aH] = PEAKS[i];
-				const [bx, by, bH] = PEAKS[j];
-				if (aH <= 0 || bH <= 0) continue;
-				const abx = bx - ax,
-					aby = by - ay;
-				const segLen = Math.sqrt(abx * abx + aby * aby);
-				if (segLen < 1e-6 || segLen > 0.75) continue;
-				const dot = (px - ax) * abx + (py - ay) * aby;
-				const t = Math.max(0, Math.min(1, dot / (abx * abx + aby * aby)));
-				const cx = ax + t * abx,
-					cy = ay + t * aby;
-				const dR = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
-				// Ridge height/width chosen so max ridge slope
-				// 0.858·ridgeH/ridgeW stays ≤ ~1.6, keeping ridges
-				// from co-stacking with a nearby peak's flank into a
-				// contour-packing hot spot.
-				const ridgeH = Math.min(aH, bH) * 0.22;
-				const ridgeW = 0.1 + segLen * 0.05;
-				h += ridgeH * Math.exp(-(dR * dR) / (ridgeW * ridgeW));
-			}
+		for (const ridge of RIDGES) {
+			const t = Math.max(
+				0,
+				Math.min(1, ((px - ridge.ax) * ridge.abx + (py - ridge.ay) * ridge.aby) * ridge.invAb2)
+			);
+			const cx = ridge.ax + t * ridge.abx,
+				cy = ridge.ay + t * ridge.aby;
+			const dx = px - cx,
+				dy = py - cy;
+			h += ridge.h * Math.exp(-(dx * dx + dy * dy) * ridge.invW2);
 		}
 		// FBM detail
 		h += (jsFbm(px * 3.5 + 7.3, py * 3.5 + 2.1) - 0.5) * 0.18;
@@ -207,26 +243,7 @@
 		return h;
 	}
 
-	/** Full height including cursor crater, so the car reacts to the cursor */
-	function jsTerrainWithCursor(
-		px: number,
-		py: number,
-		cx: number,
-		cy: number,
-		cursorActive: number
-	): number {
-		let h = jsTerrain(px, py);
-		if (cursorActive <= 0 || !Number.isFinite(cx) || !Number.isFinite(cy)) return h;
-		// Same Gaussian crater as the shader
-		const dx = px - cx,
-			dy = py - cy;
-		const dC = Math.sqrt(dx * dx + dy * dy);
-		const r = dC / 0.075;
-		h += -Math.exp(-(r * r)) * 0.55 * cursorActive;
-		return h;
-	}
-
-	/** Returns [dh/dx, dh/dy] via central differences, including cursor */
+	/** Returns [dh/dx, dh/dy] analytically for the large-scale car field. */
 	function terrainGradient(
 		px: number,
 		py: number,
@@ -234,15 +251,39 @@
 		cy: number,
 		cursorActive: number
 	): [number, number] {
-		const e = 0.002;
-		const gx =
-			(jsTerrainWithCursor(px + e, py, cx, cy, cursorActive) -
-				jsTerrainWithCursor(px - e, py, cx, cy, cursorActive)) /
-			(2 * e);
-		const gy =
-			(jsTerrainWithCursor(px, py + e, cx, cy, cursorActive) -
-				jsTerrainWithCursor(px, py - e, cx, cy, cursorActive)) /
-			(2 * e);
+		let gx = TILT[0];
+		let gy = TILT[1];
+		for (const peak of ACTIVE_PEAKS) {
+			const dx = px - peak.x;
+			const dy = py - peak.y;
+			const e = Math.exp(-(dx * dx + dy * dy) * peak.invW2);
+			const k = -2 * peak.h * peak.invW2 * e;
+			gx += k * dx;
+			gy += k * dy;
+		}
+		for (const ridge of RIDGES) {
+			const t = Math.max(
+				0,
+				Math.min(1, ((px - ridge.ax) * ridge.abx + (py - ridge.ay) * ridge.aby) * ridge.invAb2)
+			);
+			const closestX = ridge.ax + t * ridge.abx;
+			const closestY = ridge.ay + t * ridge.aby;
+			const dx = px - closestX;
+			const dy = py - closestY;
+			const e = Math.exp(-(dx * dx + dy * dy) * ridge.invW2);
+			const k = -2 * ridge.h * ridge.invW2 * e;
+			gx += k * dx;
+			gy += k * dy;
+		}
+		if (cursorActive > 0 && Number.isFinite(cx) && Number.isFinite(cy)) {
+			const dx = px - cx;
+			const dy = py - cy;
+			const invR2 = 1 / (0.075 * 0.075);
+			const e = Math.exp(-(dx * dx + dy * dy) * invR2);
+			const k = 1.1 * cursorActive * invR2 * e;
+			gx += k * dx;
+			gy += k * dy;
+		}
 		return [gx, gy];
 	}
 
@@ -273,7 +314,8 @@
 		}
 	`;
 
-	const FRAGMENT_SHADER = /* glsl */ `
+	function fragmentShader(ridgeSlotCount: number) {
+		return /* glsl */ `
 		precision highp float;
 		varying vec2 vUv;
 		uniform vec2 uCursor;
@@ -297,11 +339,15 @@
 		uniform float uIntroProgress;
 		uniform float uIntroStartHeight;
 		// Per-mount terrain parameters. uPeaks.xy = centre, .z = height,
-		// .w = width. uTilt is a global linear gradient added to the
-		// height field; both components are bounded away from zero so
-		// contour lines never run perpendicular to a screen edge.
-		// Unused slots are inert (z = 0, position far off-screen).
-		uniform vec4 uPeaks[10];
+		// .w = inverse width². Ridges are precomputed on the CPU:
+		// uRidgesA = (ax, ay, abx, aby), uRidgesB = (invAb², height,
+		// invWidth², unused). Unused slots are inert (height = 0).
+		// uTilt is a global linear gradient added to the height field;
+		// both components are bounded away from zero so contour lines
+		// never run perpendicular to a screen edge.
+		uniform vec4 uPeaks[${NUM_PEAKS}];
+		uniform vec4 uRidgesA[${ridgeSlotCount}];
+		uniform vec4 uRidgesB[${ridgeSlotCount}];
 		uniform vec2 uTilt;
 
 		// Dave Hoskins' "Hash Without Sine" 11. Every multiply happens
@@ -329,7 +375,7 @@
 		float fbm(vec2 p) {
 			float v = 0.0;
 			float a = 0.5;
-			for (int i = 0; i < 5; i++) {
+			for (int i = 0; i < ${FBM_OCTAVES}; i++) {
 				v += a * noise(p);
 				p *= 2.07;
 				a *= 0.5;
@@ -352,29 +398,24 @@
 			float h = dot(uTilt, p);
 
 			// Sum Gaussian peaks
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < ${NUM_PEAKS}; i++) {
 				vec4 pk = uPeaks[i];
-				float d = length(p - pk.xy);
-				h += pk.z * exp(-d * d / (pk.w * pk.w));
+				vec2 dp = p - pk.xy;
+				h += pk.z * exp(-dot(dp, dp) * pk.w);
 			}
 
-			// Soft ridgelines between nearby peaks: for each pair, add
-			// a gentle raised band along the segment connecting them.
-			for (int i = 0; i < 10; i++) {
-				for (int j = 0; j < 10; j++) {
-					if (j <= i) continue;
-					if (uPeaks[i].z <= 0.0 || uPeaks[j].z <= 0.0) continue;
-					vec2 a = uPeaks[i].xy; vec2 b = uPeaks[j].xy;
-					float segLen = length(b - a);
-					if (segLen < 0.000001 || segLen > 0.75) continue; // only connect nearby peaks
-					vec2 ab = b - a;
-					float t = clamp(dot(p - a, ab) / dot(ab, ab), 0.0, 1.0);
-					vec2 closest = a + t * ab;
-					float dRidge = length(p - closest);
-					float ridgeH = min(uPeaks[i].z, uPeaks[j].z) * 0.22;
-					float ridgeW = 0.10 + segLen * 0.05;
-					h += ridgeH * exp(-dRidge * dRidge / (ridgeW * ridgeW));
-				}
+			// Soft ridgelines between nearby peaks. Segment geometry,
+			// heights, and inverse widths are precomputed on the CPU so
+			// the fragment shader avoids nested peak-pair setup work.
+			for (int i = 0; i < ${ridgeSlotCount}; i++) {
+				vec4 ra = uRidgesA[i];
+				vec4 rb = uRidgesB[i];
+				if (rb.y <= 0.0) continue;
+				vec2 a = ra.xy;
+				vec2 ab = ra.zw;
+				float t = clamp(dot(p - a, ab) * rb.x, 0.0, 1.0);
+				vec2 dr = p - (a + t * ab);
+				h += rb.y * exp(-dot(dr, dr) * rb.z);
 			}
 
 			// Gentle FBM detail so contours aren't perfectly circular.
@@ -382,7 +423,7 @@
 			float detail = fbm(p * 3.5 + vec2(7.3, 2.1)) - 0.5;
 			h += detail * 0.18;
 
-			// Slight domain-warped undulation for natural asymmetry
+			// Slight domain-warped undulation for natural asymmetry.
 			float warpX = fbm(p * 2.0 + vec2(1.7, 8.3));
 			float warpY = fbm(p * 2.0 + vec2(6.1, 0.4));
 			h += (fbm((p + vec2(warpX, warpY) * 0.08) * 4.0) - 0.5) * 0.08;
@@ -410,8 +451,8 @@
 			// stays independent from the terrain intro so the custom cursor
 			// feedback is immediate on page load.
 			vec2 cp = (uCursor - 0.5) * vec2(aspect, 1.0);
-			float dC = length(p - cp);
-			float crater = -exp(-pow(dC / 0.075, 2.0)) * 0.55 * uCursorActive;
+			vec2 dc = p - cp;
+			float crater = -exp(-dot(dc, dc) / (0.075 * 0.075)) * 0.55 * uCursorActive;
 			h += crater;
 
 			// Embossed contour grooves. The groove profile is computed
@@ -498,7 +539,8 @@
 
 			gl_FragColor = vec4(outCol, 1.0);
 		}
-	`;
+		`;
+	}
 
 	onMount(() => {
 		// `three` is heavy (~150KB gz) and only runs on the client, so we
@@ -513,7 +555,14 @@
 			const THREE = await import('three');
 			if (cancelled) return;
 
-			renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+			renderer = new THREE.WebGLRenderer({
+				canvas,
+				alpha: true,
+				antialias: true,
+				depth: false,
+				stencil: false,
+				powerPreference: 'high-performance'
+			});
 			renderer.setClearColor(0x000000, 0);
 
 			const scene = new THREE.Scene();
@@ -529,12 +578,27 @@
 			// floor-clamped variant is only used for peak placement so very
 			// tall viewports still get a reasonable number of peaks.
 			const initialActualAspect = safeAspectFromRect(initialRect, 1.5);
+			let hostLeft = initialRect.left;
+			let hostTop = initialRect.top;
+			let hostWidth = Math.max(1, initialRect.width);
+			let hostHeight = Math.max(1, initialRect.height);
+			let hostAspect = initialActualAspect;
 			const initialAspect = Math.max(0.5, initialActualAspect);
 			generateTerrainParams(initialAspect);
 			const introPeakHeight = PEAKS.reduce((maxH, [x, y, pH]) => {
 				return pH > 0 ? Math.max(maxH, jsTerrain(x, y)) : maxH;
 			}, 0.5);
 			const introStartHeight = Math.max(0.35, introPeakHeight - 0.18);
+
+			const ridgeSlotCount = Math.max(1, Math.min(MAX_RIDGES, RIDGES.length));
+			const ridgeUniformA = Array.from({ length: ridgeSlotCount }, (_, i) => {
+				const ridge = RIDGES[i];
+				return new THREE.Vector4(ridge?.ax ?? 0, ridge?.ay ?? 0, ridge?.abx ?? 0, ridge?.aby ?? 0);
+			});
+			const ridgeUniformB = Array.from({ length: ridgeSlotCount }, (_, i) => {
+				const ridge = RIDGES[i];
+				return new THREE.Vector4(ridge?.invAb2 ?? 0, ridge?.h ?? 0, ridge?.invW2 ?? 0, 0);
+			});
 
 			const uniforms = {
 				uCursor: { value: new THREE.Vector2(0.5, 0.5) },
@@ -549,18 +613,34 @@
 				uPeakStrength: { value: 0.0 },
 				uIntroProgress: { value: 0.0 },
 				uIntroStartHeight: { value: introStartHeight },
-				// Per-mount terrain: peaks packed as (x, y, height, width).
-				// The array length must match the shader's `vec4 uPeaks[10]`.
+				// Per-mount terrain: peaks packed as (x, y, height, inverse width²).
 				uPeaks: {
-					value: PEAKS.map((p) => new THREE.Vector4(p[0], p[1], p[2], p[3]))
+					value: PEAKS.map(([x, y, h, w]) => new THREE.Vector4(x, y, h, 1 / (w * w)))
 				},
+				uRidgesA: { value: ridgeUniformA },
+				uRidgesB: { value: ridgeUniformB },
 				uTilt: { value: new THREE.Vector2(TILT[0], TILT[1]) }
 			};
+			let terrainNeedsRender = true;
+			const invalidateTerrain = () => {
+				terrainNeedsRender = true;
+			};
+			function syncHostMetrics() {
+				const r = host.getBoundingClientRect();
+				hostLeft = r.left;
+				hostTop = r.top;
+				hostWidth = Math.max(1, r.width);
+				hostHeight = Math.max(1, r.height);
+				hostAspect = safeAspectFromRect(r, hostAspect);
+			}
+			function targetPixelRatio(): number {
+				return Math.min(window.devicePixelRatio || 1, 2);
+			}
 
 			const material = new THREE.ShaderMaterial({
 				uniforms,
 				vertexShader: VERTEX_SHADER,
-				fragmentShader: FRAGMENT_SHADER
+				fragmentShader: fragmentShader(ridgeSlotCount)
 			});
 			scene.add(new THREE.Mesh(quad, material));
 
@@ -570,12 +650,12 @@
 			let cursorY = 0.5;
 
 			const setCursorFromClient = (clientX: number, clientY: number) => {
-				const r = host.getBoundingClientRect();
-				if (r.width <= 0 || r.height <= 0) return;
-				cursorTargetX = clamp01((clientX - r.left) / r.width);
+				if (hostWidth <= 0 || hostHeight <= 0) return;
+				cursorTargetX = clamp01((clientX - hostLeft) / hostWidth);
 				// UV origin is bottom-left in GL; flip Y to match pointer space.
-				cursorTargetY = clamp01(1.0 - (clientY - r.top) / r.height);
+				cursorTargetY = clamp01(1.0 - (clientY - hostTop) / hostHeight);
 				uniforms.uCursorActive.value = 1;
+				invalidateTerrain();
 			};
 			const onMove = (e: PointerEvent) => {
 				// Touch is handled by the dedicated touch listeners below
@@ -587,7 +667,10 @@
 				setCursorFromClient(e.clientX, e.clientY);
 			};
 			const onLeave = () => {
-				uniforms.uCursorActive.value = 0;
+				if (uniforms.uCursorActive.value !== 0) {
+					uniforms.uCursorActive.value = 0;
+					invalidateTerrain();
+				}
 			};
 			window.addEventListener('pointermove', onMove, { passive: true });
 			window.addEventListener('pointerleave', onLeave);
@@ -631,13 +714,12 @@
 
 			function resize() {
 				if (!renderer || !host) return;
-				const r = host.getBoundingClientRect();
-				const w = Math.max(1, r.width);
-				const h = Math.max(1, r.height);
-				const dpr = Math.min(window.devicePixelRatio || 1, 2);
+				syncHostMetrics();
+				const dpr = targetPixelRatio();
 				renderer.setPixelRatio(dpr);
-				renderer.setSize(w, h, false);
-				uniforms.uResolution.value.set(w * dpr, h * dpr);
+				renderer.setSize(hostWidth, hostHeight, false);
+				uniforms.uResolution.value.set(hostWidth * dpr, hostHeight * dpr);
+				invalidateTerrain();
 			}
 
 			// Resolve a CSS custom property into a THREE.Color. The design
@@ -715,6 +797,7 @@
 					);
 					uniforms.uPeakStrength.value = 1.0;
 				}
+				invalidateTerrain();
 			}
 			readColors();
 			const themeObs = new MutationObserver(readColors);
@@ -761,14 +844,45 @@
 			let smoothTurnRate = 0; // smoothed turn rate for speed control
 			let smoothSpeed = minSpeed; // smoothed actual speed
 			let steerAngle = 0; // smoothed front-wheel steer (SVG degrees)
+			let lastWheelAngle = Number.NaN;
+			let lastCarOpacity = '';
 			let lastTime = 0;
 			let introStart = 0;
+			let hiddenAt = 0;
 			const terrainIntroMs = 2200;
 			const carPlaceStartMs = terrainIntroMs * 0.28;
 			const carPlaceMs = 520;
 
+			function requestNextFrame() {
+				if (!raf && !cancelled && document.visibilityState !== 'hidden') {
+					raf = requestAnimationFrame(tick);
+				}
+			}
+
+			function stopFrameLoop() {
+				if (raf) cancelAnimationFrame(raf);
+				raf = 0;
+				lastTime = 0;
+			}
+
+			const onVisibilityChange = () => {
+				if (document.visibilityState === 'hidden') {
+					hiddenAt = performance.now();
+					stopFrameLoop();
+				} else {
+					if (hiddenAt && introStart) introStart += performance.now() - hiddenAt;
+					hiddenAt = 0;
+					requestNextFrame();
+				}
+			};
+			document.addEventListener('visibilitychange', onVisibilityChange);
+
 			function tick(now: number) {
-				raf = requestAnimationFrame(tick);
+				raf = 0;
+				if (document.visibilityState === 'hidden') {
+					lastTime = 0;
+					return;
+				}
 
 				const dt = lastTime ? Math.min((now - lastTime) / 1000, 0.05) : 0.016;
 				lastTime = now;
@@ -781,16 +895,28 @@
 					introElapsed
 				);
 				const carCanDrive = carPlace >= 0.92;
-				uniforms.uIntroProgress.value = terrainIntro;
+				if (terrainIntro < 1 || uniforms.uIntroProgress.value !== 1) {
+					uniforms.uIntroProgress.value = terrainIntro;
+					invalidateTerrain();
+				}
 
 				// Cursor smoothing
-				cursorX += (cursorTargetX - cursorX) * 0.18;
-				cursorY += (cursorTargetY - cursorY) * 0.18;
-				uniforms.uCursor.value.set(cursorX, cursorY);
+				const cursorDx = cursorTargetX - cursorX;
+				const cursorDy = cursorTargetY - cursorY;
+				if (Math.abs(cursorDx) + Math.abs(cursorDy) > 0.0001) {
+					cursorX += cursorDx * 0.18;
+					cursorY += cursorDy * 0.18;
+					uniforms.uCursor.value.set(cursorX, cursorY);
+					if (uniforms.uCursorActive.value > 0) invalidateTerrain();
+				} else if (cursorX !== cursorTargetX || cursorY !== cursorTargetY) {
+					cursorX = cursorTargetX;
+					cursorY = cursorTargetY;
+					uniforms.uCursor.value.set(cursorX, cursorY);
+					if (uniforms.uCursorActive.value > 0) invalidateTerrain();
+				}
 
 				// ── Update car ──────────────────────────────────────
-				const rect = host?.getBoundingClientRect();
-				const aspect = safeAspectFromRect(rect, previousAspect);
+				const aspect = hostAspect || previousAspect;
 				if (Math.abs(aspect - previousAspect) > 1e-4) {
 					const screenU = carPx / previousAspect + 0.5;
 					carPx = (screenU - 0.5) * aspect;
@@ -910,40 +1036,53 @@
 				carPy = Math.max(-edgeY, Math.min(edgeY, carPy));
 
 				// ── Position the car DOM element ────────────────────
-				if (carEl && rect) {
+				if (carEl) {
 					const carEase = easeOutCubic(carPlace);
 					const carScale = 0.82 + 0.18 * carEase;
 					const screenU = carPx / aspect + 0.5;
 					const screenV = carPy + 0.5;
-					const cssX = screenU * rect.width;
-					const cssY = (1 - screenV) * rect.height;
+					const cssX = screenU * hostWidth;
+					const cssY = (1 - screenV) * hostHeight;
 
 					const cssAngle = -((carHeading * 180) / Math.PI) + 90;
+					const opacity = carEase >= 0.999 ? '1' : carEase.toFixed(3);
 
-					carEl.style.opacity = carEase.toFixed(3);
+					if (opacity !== lastCarOpacity) {
+						carEl.style.opacity = opacity;
+						lastCarOpacity = opacity;
+					}
 					carEl.style.transform =
-						`translate(-50%, -50%) translate(${cssX}px, ${cssY}px) ` +
-						`rotate(${cssAngle}deg) scale(${carScale.toFixed(3)})`;
+						`translate3d(${cssX.toFixed(2)}px, ${cssY.toFixed(2)}px, 0) translate(-50%, -50%) ` +
+						`rotate(${cssAngle.toFixed(2)}deg) scale(${carScale.toFixed(3)})`;
 				}
 
 				// Rotate front wheels around their own centres to show steering.
-				if (frontLeftWheel && frontRightWheel) {
+				if (
+					frontLeftWheel &&
+					frontRightWheel &&
+					(Number.isNaN(lastWheelAngle) || Math.abs(steerAngle - lastWheelAngle) > 0.1)
+				) {
 					const a = steerAngle.toFixed(2);
 					frontLeftWheel.setAttribute('transform', `rotate(${a} 1.5 8.6)`);
 					frontRightWheel.setAttribute('transform', `rotate(${a} 16.5 8.6)`);
+					lastWheelAngle = steerAngle;
 				}
 
-				renderer!.render(scene, camera);
+				if (terrainNeedsRender) {
+					renderer!.render(scene, camera);
+					terrainNeedsRender = false;
+				}
+				requestNextFrame();
 			}
 
 			resize();
 			ro = new ResizeObserver(resize);
 			ro.observe(host);
-			raf = requestAnimationFrame(tick);
+			requestNextFrame();
 
 			cleanup = () => {
-				cancelAnimationFrame(raf);
-				raf = 0;
+				stopFrameLoop();
+				document.removeEventListener('visibilitychange', onVisibilityChange);
 				window.removeEventListener('pointermove', onMove);
 				window.removeEventListener('pointerleave', onLeave);
 				window.removeEventListener('touchstart', onTouchStart);

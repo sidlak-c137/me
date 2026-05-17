@@ -38,7 +38,7 @@
 			></div>
 			{#if mounted}
 				<h1
-					class="font-serif text-6xl leading-[0.95] italic select-none md:text-7xl lg:text-[5.5rem]"
+					class="font-serif text-6xl leading-[0.95] text-foreground italic select-none md:text-7xl lg:text-[5.5rem]"
 					in:fly={{ y: 24, duration: 700, delay: 80, easing: quintOut }}
 				>
 					<span class="text-accent">Sid</span>harth<br /><span class="text-accent">Lak</span>shmanan
