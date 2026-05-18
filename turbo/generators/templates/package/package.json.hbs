@@ -1,0 +1,35 @@
+{
+	"name": "@me/{{name}}",
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "svelte-package -w",
+		"build": "svelte-package",
+		"prepublishOnly": "pnpm run build",
+		"check": "svelte-check --tsconfig ./tsconfig.json"
+	},
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"svelte": "./dist/index.js"
+		}
+	},
+	"svelte": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"dependencies": {
+		"@me/design-system": "workspace:*"
+	},
+	"devDependencies": {
+		"@sveltejs/package": "^2.5.5",
+		"svelte": "^5.55.2",
+		"svelte-check": "^4.4.6",
+		"typescript": "^6.0.2"
+	},
+	"peerDependencies": {
+		"svelte": "^5.0.0",
+		"tailwindcss": "^4.0.0"
+	}
+}

@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import type { Pathname } from '$app/types';
 	import { Button, useTheme } from '@me/design-system';
+	import Moon from '@lucide/svelte/icons/moon';
+	import Sun from '@lucide/svelte/icons/sun';
 	import { KNOWN_SEGMENTS } from '$lib/seo';
 
 	const theme = useTheme();
@@ -22,7 +25,12 @@
 	);
 
 	function label(seg: string) {
-		return seg.charAt(0).toUpperCase() + seg.slice(1);
+		// Title-case across hyphens so multi-word slugs like `paper-planes`
+		// render as `Paper Planes` instead of `Paper-planes`.
+		return seg
+			.split('-')
+			.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+			.join(' ');
 	}
 </script>
 
@@ -47,6 +55,15 @@
 				SidLak
 			</a>
 		{:else}
+			<!-- Full breadcrumb on md+, leaf-only on phones. Intermediate
+			     crumbs are real links to their own pages (e.g. the
+			     `Explorations` crumb on `/explorations/paper-planes` goes
+			     to `/explorations`) so up-navigation works without an
+			     in-page back link per exploration. Below `md` the
+			     intermediate pair (separator + link) is hidden to keep
+			     the header on one line on phones; the full path is still
+			     reachable by tapping the root crumb. Validation walks
+			     the full path via `isKnownRoute`. -->
 			<a
 				href={resolve('/')}
 				data-cursor="text"
@@ -55,10 +72,23 @@
 				SidLak
 			</a>
 			{#each segments as seg, i (seg)}
-				<span class="mx-2 text-subtle" aria-hidden="true">/</span>
-				<span class={i === segments.length - 1 ? 'text-foreground' : 'text-muted-foreground'}>
-					{label(seg)}
-				</span>
+				{@const isLeaf = i === segments.length - 1}
+				{@const href = resolve(('/' + segments.slice(0, i + 1).join('/')) as Pathname)}
+				<span
+					class="mx-2 text-subtle {isLeaf ? '' : 'hidden md:inline'}"
+					aria-hidden="true">/</span
+				>
+				{#if isLeaf}
+					<span class="text-foreground">{label(seg)}</span>
+				{:else}
+					<a
+						{href}
+						data-cursor="text"
+						class="hidden text-muted-foreground transition-colors hover:text-foreground md:inline"
+					>
+						{label(seg)}
+					</a>
+				{/if}
 			{/each}
 		{/if}
 	</nav>
@@ -67,13 +97,23 @@
 		onclick={theme.toggle}
 		data-cursor="hover"
 		aria-label="Toggle color theme"
+    class="px-3! md:px-5"
 	>
 		<!-- Both glyphs render but CSS gates them by the .dark class so SSR
 		     and client emit identical markup — sidesteps the hydration
-		     mismatch from reading reactive theme state before $effect runs. -->
-		<span aria-hidden="true" class="dark:hidden">☾</span>
-		<span aria-hidden="true" class="hidden dark:inline">☀</span>
-		<span class="dark:hidden">dark</span>
-		<span class="hidden dark:inline">light</span>
+		     mismatch from reading reactive theme state before $effect runs.
+		     The text labels collapse to icon-only on phones to match the
+		     leaf-only breadcrumb; the aria-label on the button keeps the
+		     action accessible at any width. -->
+		<span aria-hidden="true" class="inline-flex dark:hidden">
+			<Moon class="size-3.5" strokeWidth={1.75} />
+		</span>
+		<span aria-hidden="true" class="hidden dark:inline-flex">
+			<Sun class="size-3.5" strokeWidth={1.75} />
+		</span>
+		<span class="hidden md:inline">
+			<span class="dark:hidden">dark</span>
+			<span class="hidden dark:inline">light</span>
+		</span>
 	</Button>
 </header>

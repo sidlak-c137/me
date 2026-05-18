@@ -1,0 +1,16 @@
+<script lang="ts">
+	import { {{pascalCase name}} } from '@me/{{name}}';
+	import Seo from '$lib/components/Seo.svelte';
+	import { pageTransition } from '$lib/transition.svelte';
+
+	// Same intro gating as the sibling explorations pages: animate only when
+	// arriving via the cross-page wash, paint in place on direct loads.
+	const animate = pageTransition.consumeIntro();
+</script>
+
+<Seo
+	title="{{titleCase (words name)}}"
+	description="An exploration by Sidharth Lakshmanan."
+/>
+
+<{{pascalCase name}} {animate} />

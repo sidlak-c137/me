@@ -1,0 +1,38 @@
+<script lang="ts">
+	import { fly } from 'svelte/transition';
+	import { quintOut } from 'svelte/easing';
+
+	// Entrance animations are opt-in via prop so the host route can gate them
+	// on the cross-page wash (same pattern as /explorations and /elsewhere).
+	let { animate = false }: { animate?: boolean } = $props();
+	const noIntro = () => ({ duration: 0 });
+	// `animate` is a `$props()` value, so reading it through `$derived` keeps
+	// the transition selection reactive instead of capturing only the initial
+	// value at module init.
+	const flyIn = $derived(animate ? fly : noIntro);
+</script>
+
+<main class="relative h-full min-h-0 overflow-hidden bg-background text-foreground">
+	<section class="relative z-10 flex h-full items-center px-6 md:px-12 lg:px-20">
+		<div class="relative max-w-xl">
+			<p
+				class="font-mono text-[0.7rem] tracking-[0.22em] text-muted-foreground uppercase"
+				in:flyIn=\{{ y: 16, duration: 700, delay: 80, easing: quintOut }}
+			>
+				Explorations · {{words name}}
+			</p>
+			<h1
+				class="mt-6 font-serif text-6xl leading-[0.95] text-foreground italic select-none md:text-7xl lg:text-[5.5rem]"
+				in:flyIn=\{{ y: 24, duration: 700, delay: 180, easing: quintOut }}
+			>
+				<span class="text-accent">{{titleCase (words name)}}</span>.
+			</h1>
+			<p
+				class="text-md mt-8 max-w-md leading-relaxed text-muted-foreground select-none md:text-lg"
+				in:flyIn=\{{ y: 20, duration: 700, delay: 320, easing: quintOut }}
+			>
+				Placeholder copy — replace me.
+			</p>
+		</div>
+	</section>
+</main>

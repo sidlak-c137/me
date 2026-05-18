@@ -48,11 +48,14 @@ export const ROUTES: ReadonlyArray<RouteEntry> = [
 	{ path: '/explorations', changefreq: 'weekly', priority: '0.6' }
 ];
 
-// Top-level URL segments (post-leading-slash). Used by the header to
+// Path segments (any depth, post-leading-slash). Used by the header to
 // decide whether to render a breadcrumb crumb for the current pathname —
 // anything outside this set is treated as user-controlled junk (404s,
 // crafted phishing URLs, etc.) and the header collapses to just the
 // root crumb instead of reflecting attacker text back into the chrome.
+// Multi-segment routes contribute every segment so each crumb in a nested
+// path is individually whitelisted (e.g. `/explorations/paper-planes`
+// registers both `explorations` and `paper-planes`).
 export const KNOWN_SEGMENTS: ReadonlySet<string> = new Set(
-	ROUTES.map((r) => r.path.replace(/^\//, '')).filter((seg) => seg.length > 0)
+	ROUTES.flatMap((r) => r.path.split('/').filter((seg) => seg.length > 0))
 );

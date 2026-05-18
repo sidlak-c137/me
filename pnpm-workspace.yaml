@@ -1,3 +1,13 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# Explicit allowlist for native postinstall scripts. pnpm 11 blocks these by
+# default; without esbuild approved here, every `pnpm` invocation in the
+# workspace (including the auto deps-status check that turbo gen triggers)
+# exits non-zero on the ignored-builds warning. esbuild ships platform
+# binaries via its postinstall and is pulled in transitively by @turbo/gen.
+onlyBuiltDependencies:
+  - esbuild
+allowBuilds:
+  esbuild: true

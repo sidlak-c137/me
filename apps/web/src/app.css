@@ -22,10 +22,11 @@
 @import '@fontsource/jetbrains-mono/latin-500.css';
 @import '@fontsource/jetbrains-mono/latin-700.css';
 
-/* Pick up utility classes used inside the design-system package so Tailwind
-   emits them. Points at source (not dist) so the app builds without requiring
-   a fresh DS build. */
-@source '../../../packages/design-system/src/lib/**/*.{svelte,ts,js}';
+/* Pick up utility classes used inside any workspace package so Tailwind emits
+   them. Single glob covers current and future packages so adding a new one
+   doesn't require touching this file. Points at source (not dist) so the app
+   builds without requiring a fresh package build. */
+@source '../../../packages/*/src/lib/**/*.{svelte,ts,js}';
 
 /* ────────────────────────────────────────────────────────────
    App-specific base
