@@ -15,7 +15,6 @@ ENV CI=true
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/design-system/package.json ./packages/design-system/
-COPY packages/cracked-glass/package.json ./packages/cracked-glass/
 RUN pnpm install --frozen-lockfile
 
 # Bring in the rest of the source and build DS then app via turbo.
@@ -43,8 +42,6 @@ COPY --from=builder /repo/apps/web/node_modules ./apps/web/node_modules
 COPY --from=builder /repo/apps/web/build ./apps/web/build
 COPY --from=builder /repo/packages/design-system/package.json ./packages/design-system/package.json
 COPY --from=builder /repo/packages/design-system/dist ./packages/design-system/dist
-COPY --from=builder /repo/packages/cracked-glass/package.json ./packages/cracked-glass/package.json
-COPY --from=builder /repo/packages/cracked-glass/dist ./packages/cracked-glass/dist
 
 EXPOSE 8080
 CMD ["node", "apps/web/build"]
