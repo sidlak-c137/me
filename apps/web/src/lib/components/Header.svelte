@@ -74,9 +74,7 @@
 			{#each segments as seg, i (seg)}
 				{@const isLeaf = i === segments.length - 1}
 				{@const href = resolve(('/' + segments.slice(0, i + 1).join('/')) as Pathname)}
-				<span
-					class="mx-2 text-subtle {isLeaf ? '' : 'hidden md:inline'}"
-					aria-hidden="true">/</span
+				<span class="mx-2 text-subtle {isLeaf ? '' : 'hidden md:inline'}" aria-hidden="true">/</span
 				>
 				{#if isLeaf}
 					<span class="text-foreground">{label(seg)}</span>
@@ -97,7 +95,7 @@
 		onclick={theme.toggle}
 		data-cursor="hover"
 		aria-label="Toggle color theme"
-    class="px-3! md:px-5"
+		class="px-3! md:px-5"
 	>
 		<!-- Both glyphs render but CSS gates them by the .dark class so SSR
 		     and client emit identical markup — sidesteps the hydration

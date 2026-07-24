@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import {
-		SITE_URL,
 		SITE_NAME,
 		DEFAULT_DESCRIPTION,
 		DEFAULT_OG_IMAGE,

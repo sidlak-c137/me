@@ -16,8 +16,7 @@
 				kicker: 'Not found',
 				headlineLead: 'Lost',
 				headlineTail: 'in the ether.',
-				body:
-					'This page either moved or was never here. Head back home and pick up the thread from a known address.'
+				body: 'This page either moved or was never here. Head back home and pick up the thread from a known address.'
 			};
 		}
 		if (status >= 500) {
@@ -55,11 +54,7 @@
 	// any chance of an indexed soft-404 from CDN edge caches.
 </script>
 
-<Seo
-	title={`${status} · ${c.kicker}`}
-	description={c.body}
-	noindex
-/>
+<Seo title={`${status} · ${c.kicker}`} description={c.body} noindex />
 
 <main class="relative h-full min-h-0 overflow-hidden bg-background text-foreground">
 	<section class="relative z-10 flex h-full items-center px-6 md:px-12 lg:px-20">
@@ -76,9 +71,7 @@
 				<span class="text-accent">{c.headlineLead}</span>
 				{c.headlineTail}
 			</h1>
-			<p
-				class="text-md mt-8 max-w-md leading-relaxed text-muted-foreground select-none md:text-lg"
-			>
+			<p class="text-md mt-8 max-w-md leading-relaxed text-muted-foreground select-none md:text-lg">
 				{c.body}
 			</p>
 
@@ -86,14 +79,14 @@
 				<a
 					href={resolve('/')}
 					data-cursor="hover"
-					class="inline-flex select-none items-center justify-center gap-2 rounded-full border border-foreground bg-foreground px-5 py-2 font-mono text-[0.72rem] tracking-[0.18em] text-background uppercase transition-colors duration-200 hover:bg-foreground/90"
+					class="inline-flex items-center justify-center gap-2 rounded-full border border-foreground bg-foreground px-5 py-2 font-mono text-[0.72rem] tracking-[0.18em] text-background uppercase transition-colors duration-200 select-none hover:bg-foreground/90"
 				>
 					← Home
 				</a>
 				<a
 					href={resolve('/elsewhere')}
 					data-cursor="hover"
-					class="inline-flex select-none items-center justify-center gap-2 rounded-full border border-foreground/30 bg-background px-5 py-2 font-mono text-[0.72rem] tracking-[0.18em] text-foreground uppercase transition-colors duration-200"
+					class="inline-flex items-center justify-center gap-2 rounded-full border border-foreground/30 bg-background px-5 py-2 font-mono text-[0.72rem] tracking-[0.18em] text-foreground uppercase transition-colors duration-200 select-none"
 				>
 					Elsewhere
 				</a>

@@ -45,7 +45,7 @@
 			icon: 'linkedin',
 			top: '12%',
 			left: '8%',
-			topSm: '6%',
+			topSm: '16%',
 			leftSm: '6%',
 			floatDur: '7.2s',
 			floatDelay: '0s',
@@ -59,7 +59,7 @@
 			icon: 'x',
 			top: '30%',
 			left: '54%',
-			topSm: '30%',
+			topSm: '32%',
 			leftSm: '6%',
 			floatDur: '8.6s',
 			floatDelay: '-1.4s',
@@ -73,7 +73,7 @@
 			icon: 'github',
 			top: '52%',
 			left: '8%',
-			topSm: '54%',
+			topSm: '48%',
 			leftSm: '6%',
 			floatDur: '9.4s',
 			floatDelay: '-0.6s',
@@ -87,7 +87,7 @@
 			icon: 'mail',
 			top: '70%',
 			left: '54%',
-			topSm: '78%',
+			topSm: '64%',
 			leftSm: '6%',
 			floatDur: '10.2s',
 			floatDelay: '-2.3s',
@@ -175,7 +175,7 @@
 								     clips overflow; each child translates + fades in lockstep. -->
 							<span class="swap relative inline-grid overflow-hidden align-middle">
 								<span
-									class="swap-label col-start-1 row-start-1 self-center font-serif text-5xl leading-[0.95] italic md:text-6xl lg:text-7xl"
+									class="swap-label col-start-1 row-start-1 self-center font-serif text-4xl leading-[0.95] italic md:text-6xl lg:text-7xl"
 								>
 									{link.label}
 								</span>

@@ -13,14 +13,12 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
 	plop.setHelper('words', (str: unknown) => String(str).replace(/-/g, ' '));
 
 	plop.setGenerator('exploration', {
-		description:
-			'Scaffold a new exploration package and mount it under /explorations/<name>',
+		description: 'Scaffold a new exploration package and mount it under /explorations/<name>',
 		prompts: [
 			{
 				type: 'input',
 				name: 'name',
-				message:
-					'Package name (kebab-case, e.g. kaleidoscope or paper-planes):',
+				message: 'Package name (kebab-case, e.g. kaleidoscope or paper-planes):',
 				validate: (input: string) => {
 					if (!/^[a-z][a-z0-9-]*$/.test(input)) {
 						return 'Name must be lowercase kebab-case (letters, digits, hyphens; starts with a letter).';
@@ -98,8 +96,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
 				type: 'modify',
 				path: 'Dockerfile',
 				pattern: /(RUN pnpm install --frozen-lockfile)/,
-				template:
-					'COPY packages/{{name}}/package.json ./packages/{{name}}/\n$1'
+				template: 'COPY packages/{{name}}/package.json ./packages/{{name}}/\n$1'
 			},
 
 			// ── Dockerfile: runtime-stage dist COPY ───────────────────────

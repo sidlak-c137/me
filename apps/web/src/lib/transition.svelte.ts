@@ -18,10 +18,11 @@ class PageTransition {
 	private pendingIntro = false;
 
 	// Total sweep duration; kept in lock-step with the keyframe in
-	// +layout.svelte. Handoff is the midpoint — full coverage — and the
-	// safest moment to swap routes since the new page mounts hidden.
-	readonly duration = 1100;
-	readonly handoff = 550;
+	// +layout.svelte. Handoff is the full-coverage moment (the 50% keyframe,
+	// the time-midpoint) — the safest moment to swap routes since the new
+	// page mounts hidden under the pane.
+	readonly duration = 2000;
+	readonly handoff = 1000;
 
 	navigate(href: Pathname) {
 		if (!browser) {

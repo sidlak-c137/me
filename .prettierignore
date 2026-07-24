@@ -9,3 +9,7 @@ bun.lockb
 apps/web/static/
 packages/*/dist/
 **/.svelte-kit/
+
+# Code-generation templates (.hbs contain placeholder syntax that isn't valid
+# target-language code, so Prettier can't parse them)
+turbo/generators/templates/
