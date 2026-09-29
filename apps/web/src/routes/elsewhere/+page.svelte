@@ -13,6 +13,8 @@
 	const animate = pageTransition.consumeIntro();
 	const noIntro = () => ({ duration: 0 });
 	const flyIn = animate ? fly : noIntro;
+	let hoveredLink = $state<string | null>(null);
+	let touchInput = $state(false);
 
 	type Link = {
 		label: string;
@@ -66,11 +68,11 @@
 			floatAmp: '-8px'
 		},
 		{
-			label: 'GitHub',
-			handle: 'github.com/sidlak-c137',
-			href: 'https://github.com/sidlak-c137',
-			external: true,
-			icon: 'github',
+			label: 'Email',
+			handle: 'sidharth.m.lakshmanan@gmail.com',
+			href: 'mailto:sidharth.m.lakshmanan@gmail.com',
+			external: false,
+			icon: 'mail',
 			top: '52%',
 			left: '8%',
 			topSm: '48%',
@@ -80,11 +82,11 @@
 			floatAmp: '-9px'
 		},
 		{
-			label: 'Email',
-			handle: 'sidharth.m.lakshmanan@gmail.com',
-			href: 'mailto:sidharth.m.lakshmanan@gmail.com',
-			external: false,
-			icon: 'mail',
+			label: 'GitHub',
+			handle: 'github.com/sidlak-c137',
+			href: 'https://github.com/sidlak-c137',
+			external: true,
+			icon: 'github',
 			top: '70%',
 			left: '54%',
 			topSm: '64%',
@@ -95,6 +97,14 @@
 		}
 	];
 </script>
+
+<svelte:window
+	onpointerdown={(event) => {
+		touchInput = event.pointerType === 'touch';
+		if (touchInput) hoveredLink = null;
+	}}
+	onkeydown={() => (touchInput = false)}
+/>
 
 <Seo
 	title="Elsewhere"
@@ -124,11 +134,22 @@
 							data-cursor="text"
 							target={link.external ? '_blank' : undefined}
 							rel={link.external ? 'noopener noreferrer' : undefined}
-							class="group inline-flex items-center gap-5 text-foreground transition-colors duration-200 hover:text-accent md:gap-7"
+							class="group inline-flex items-center gap-5 text-foreground transition-colors duration-200 md:gap-7"
+							class:mouse-hovered={hoveredLink === link.label && !touchInput}
+							class:touch-input={touchInput}
+							onpointerenter={(event) => {
+								if (event.pointerType === 'mouse') {
+									touchInput = false;
+									hoveredLink = link.label;
+								}
+							}}
+							onpointerleave={() => {
+								if (hoveredLink === link.label) hoveredLink = null;
+							}}
 						>
 							<!-- eslint-enable svelte/no-navigation-without-resolve -->
 							<span
-								class="inline-flex h-10 w-10 shrink-0 items-center justify-center text-muted-foreground transition-colors duration-200 group-hover:text-accent md:h-12 md:w-12"
+								class="link-icon inline-flex h-10 w-10 shrink-0 items-center justify-center text-muted-foreground transition-colors duration-200 md:h-12 md:w-12"
 								aria-hidden="true"
 							>
 								{#if link.icon === 'linkedin'}
@@ -248,30 +269,40 @@
 		opacity: 0;
 	}
 
-	.group:hover .swap-label,
-	.group:focus-visible .swap-label {
+	/* Native :hover can stick after a touch or long press, even when a mouse
+	   is attached. Only mouse pointer events activate the animated reveal;
+	   keyboard focus keeps the same affordance without reacting to touch. */
+	.group.mouse-hovered,
+	.group.mouse-hovered .link-icon,
+	.group:not(.touch-input):focus-visible,
+	.group:not(.touch-input):focus-visible .link-icon {
+		color: var(--color-accent);
+	}
+
+	.group.mouse-hovered .swap-label,
+	.group:not(.touch-input):focus-visible .swap-label {
 		transform: translateY(-0.9rem);
 		opacity: 0;
 	}
 
-	.group:hover .swap-handle,
-	.group:focus-visible .swap-handle {
+	.group.mouse-hovered .swap-handle,
+	.group:not(.touch-input):focus-visible .swap-handle {
 		transform: translateY(0);
 		opacity: 1;
 	}
 
-	/* Mobile: hover isn't reliable on touch, so the handle reveal is dropped
-	   entirely — only the label shows. The cell is clamped to the viewport
-	   width and the label is truncated with ellipsis so it can't push the
-	   row past the right edge. `min-width: 0` lets the child honor
-	   `text-overflow: ellipsis` instead of forcing the cell to grow. */
+	/* Constrain both states to the space left after the row's inset and icon.
+	   Narrow windows can still have a mouse, so sizing must not disable hover. */
 	@media (max-width: 767px) {
-		.swap {
-			max-width: calc(100vw - 6rem);
-			min-width: 0;
+		.scatter > li {
+			max-width: calc(100% - var(--li-left-sm));
 		}
-		.swap-handle {
-			display: none;
+		.float,
+		.group {
+			max-width: 100%;
+		}
+		.swap {
+			min-width: 0;
 		}
 		.swap-label {
 			max-width: 100%;
@@ -279,9 +310,10 @@
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
-			transform: none !important;
-			opacity: 1 !important;
-			transition: none;
+		}
+		.swap-handle {
+			min-width: 0;
+			overflow-wrap: anywhere;
 		}
 	}
 
@@ -294,13 +326,13 @@
 			transition: opacity 200ms ease;
 			transform: none;
 		}
-		.group:hover .swap-label,
-		.group:focus-visible .swap-label {
+		.group.mouse-hovered .swap-label,
+		.group:not(.touch-input):focus-visible .swap-label {
 			transform: none;
 			opacity: 0;
 		}
-		.group:hover .swap-handle,
-		.group:focus-visible .swap-handle {
+		.group.mouse-hovered .swap-handle,
+		.group:not(.touch-input):focus-visible .swap-handle {
 			transform: none;
 			opacity: 1;
 		}

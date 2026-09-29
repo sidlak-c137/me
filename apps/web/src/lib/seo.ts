@@ -7,7 +7,7 @@ export const SITE_URL = 'https://sidlak.me';
 export const SITE_NAME = 'Sidharth Lakshmanan';
 
 export const DEFAULT_DESCRIPTION =
-	'Sidharth Lakshmanan — research engineer at Reve AI prototyping, building, and shipping frontend systems.';
+	'Sidharth Lakshmanan — research engineer at OpenAI building the future of image generation in ChatGPT.';
 
 // Default share image. Path is resolved against SITE_URL by the Seo
 // component, so this stays a root-relative pathname.

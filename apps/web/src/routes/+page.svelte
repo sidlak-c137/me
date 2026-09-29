@@ -25,7 +25,7 @@
 		alternateName: 'Sid Lakshmanan',
 		url: SITE_URL,
 		jobTitle: 'Research Engineer',
-		worksFor: { '@type': 'Organization', name: 'Reve AI' },
+		worksFor: { '@type': 'Organization', name: 'OpenAI' },
 		sameAs: [
 			'https://www.linkedin.com/in/sidharth-lakshmanan',
 			'https://x.com/theSidLak',
@@ -36,7 +36,7 @@
 
 <Seo
 	title={null}
-	description="Sidharth Lakshmanan — research engineer at Reve AI prototyping, building, and shipping frontend systems."
+	description="Sidharth Lakshmanan — research engineer at OpenAI building the future of image generation in ChatGPT."
 	type="profile"
 />
 
@@ -75,10 +75,8 @@
 				class="hero-intro hero-intro-2 text-md mt-8 max-w-md leading-relaxed text-muted-foreground select-none md:text-lg"
 			>
 				I'm an engineer who thrives at materializing ideas into products. You can find me as a
-				research engineer at Reve AI <span class="font-bold text-foreground"
-					>prototyping, building, and shipping</span
-				>
-				many of our frontend systems.
+				<span class="font-bold text-foreground">research engineer at OpenAI</span>, building the
+				future of image generation in ChatGPT.
 			</p>
 
 			<div class="hero-intro hero-intro-3 mt-10 flex flex-wrap items-center gap-3">
