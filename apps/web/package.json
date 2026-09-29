@@ -18,6 +18,7 @@
 		"@fontsource/lato": "^5.2.7",
 		"@lucide/svelte": "^1.16.0",
 		"@me/design-system": "workspace:*",
+		"@me/brick-by-brick": "workspace:*",
 		"three": "^0.169.0"
 	},
 	"devDependencies": {

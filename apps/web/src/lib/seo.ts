@@ -45,7 +45,8 @@ export type RouteEntry = {
 export const ROUTES: ReadonlyArray<RouteEntry> = [
 	{ path: '/', changefreq: 'monthly', priority: '1.0' },
 	{ path: '/elsewhere', changefreq: 'yearly', priority: '0.7' },
-	{ path: '/explorations', changefreq: 'weekly', priority: '0.6' }
+	{ path: '/explorations', changefreq: 'weekly', priority: '0.6' },
+	{ path: '/explorations/brick-by-brick', changefreq: 'monthly', priority: '0.5' }
 ];
 
 // Path segments (any depth, post-leading-slash). Used by the header to

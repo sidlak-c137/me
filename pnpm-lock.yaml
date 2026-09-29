@@ -62,6 +62,9 @@ importers:
       '@lucide/svelte':
         specifier: ^1.16.0
         version: 1.16.0(svelte@5.55.5(@typescript-eslint/types@8.59.2))
+      '@me/brick-by-brick':
+        specifier: workspace:*
+        version: link:../../packages/brick-by-brick
       '@me/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
@@ -102,6 +105,34 @@ importers:
       vite:
         specifier: ^8.0.7
         version: 8.0.11(@types/node@22.19.18)(jiti@2.7.0)
+
+  packages/brick-by-brick:
+    dependencies:
+      '@me/design-system':
+        specifier: workspace:*
+        version: link:../design-system
+      tailwindcss:
+        specifier: ^4.0.0
+        version: 4.3.0
+      three:
+        specifier: ^0.169.0
+        version: 0.169.0
+    devDependencies:
+      '@sveltejs/package':
+        specifier: ^2.5.5
+        version: 2.5.7(svelte@5.55.5(@typescript-eslint/types@8.59.2))(typescript@6.0.3)
+      '@types/three':
+        specifier: ^0.169.0
+        version: 0.169.0
+      svelte:
+        specifier: ^5.55.2
+        version: 5.55.5(@typescript-eslint/types@8.59.2)
+      svelte-check:
+        specifier: ^4.4.6
+        version: 4.4.8(picomatch@4.0.4)(svelte@5.55.5(@typescript-eslint/types@8.59.2))(typescript@6.0.3)
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.3
 
   packages/design-system:
     dependencies:
