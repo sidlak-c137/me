@@ -135,6 +135,7 @@
 							target={link.external ? '_blank' : undefined}
 							rel={link.external ? 'noopener noreferrer' : undefined}
 							class="group inline-flex items-center gap-5 text-foreground transition-colors duration-200 md:gap-7"
+							style:padding-inline-end={link.icon === 'x' ? '0.375rem' : '0.25rem'}
 							class:mouse-hovered={hoveredLink === link.label && !touchInput}
 							class:touch-input={touchInput}
 							onpointerenter={(event) => {

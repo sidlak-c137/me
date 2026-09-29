@@ -21,8 +21,6 @@
 	let pressed = $state(false);
 
 	onMount(() => {
-		if (window.matchMedia('(pointer: coarse)').matches) return;
-
 		let lastX = window.innerWidth / 2;
 		let lastY = window.innerHeight / 2;
 		let targetDotX = lastX;
@@ -66,18 +64,6 @@
 				if (c === 'text' && isInteractive(cur)) return { el: cur, mode: 'text' };
 				if (cur.matches?.(SELECTOR) && isInteractive(cur)) return { el: cur, mode: 'morph' };
 				cur = cur.parentElement;
-			}
-			return { el: null, mode: 'free' };
-		};
-
-		const findHoveredInteractive = (): { el: HTMLElement | null; mode: Mode } => {
-			const hovered = Array.from(document.querySelectorAll<HTMLElement>(':hover'));
-			for (let i = hovered.length - 1; i >= 0; i--) {
-				const cur = hovered[i];
-				const c = cur.dataset?.cursor;
-				if (c === 'ignore') return { el: null, mode: 'free' };
-				if (c === 'text' && isInteractive(cur)) return { el: cur, mode: 'text' };
-				if (cur.matches?.(SELECTOR) && isInteractive(cur)) return { el: cur, mode: 'morph' };
 			}
 			return { el: null, mode: 'free' };
 		};
@@ -168,27 +154,10 @@
 			if (el && (nextMode === 'morph' || nextMode === 'text')) attachOutline(el, nextMode);
 		};
 
-		const commitInitialHover = () => {
-			const { el, mode: nextMode } = findHoveredInteractive();
-			if (!el || nextMode === 'free') return;
-
-			// A stationary pointer's coordinates are not exposed on refresh, but CSS
-			// :hover is. Seed the morph origin from the hovered element until the first
-			// real mouse event provides exact coordinates.
-			const rect = el.getBoundingClientRect();
-			const seededX = rect.left + rect.width / 2;
-			const seededY = rect.top + rect.height / 2;
-			lastX = targetDotX = dotX = ringX = seededX;
-			lastY = targetDotY = dotY = ringY = seededY;
-			velocity = 0;
-			pendingEl = el;
-			pendingMode = nextMode;
-			pendingSince = performance.now() - DWELL_MS;
-
-			commit(el, nextMode);
-		};
-
 		const recompute = () => {
+			// Scroll, resize, and pending hover work must not resurrect an outline
+			// after the browser has returned control to the native cursor.
+			if (!visible) return;
 			const now = performance.now();
 			const { el, mode: nextMode } =
 				velocity > FAST_SPEED
@@ -204,8 +173,29 @@
 			if (nextMode === 'free' || now - pendingSince >= DWELL_MS) commit(el, nextMode);
 		};
 
-		const onMove = (e: MouseEvent) => {
+		const onLeave = () => {
+			visible = false;
+			pressed = false;
+			velocity = 0;
+			lastMoveTime = 0;
+			pendingEl = null;
+			pendingMode = 'free';
+			commit(null, 'free');
+			document.documentElement.classList.remove('custom-cursor-active');
+		};
+		const onMove = (e: PointerEvent) => {
+			if (e.pointerType !== 'mouse' || !document.hasFocus() || document.hidden) {
+				onLeave();
+				return;
+			}
+			// After a window switch, wait for real mouse coordinates and snap both
+			// pieces into place instead of animating from the stale position.
+			if (!visible) {
+				dotX = ringX = e.clientX;
+				dotY = ringY = e.clientY;
+			}
 			visible = true;
+			document.documentElement.classList.add('custom-cursor-active');
 			const now = performance.now();
 			const dt = lastMoveTime === 0 ? 16 : Math.max(now - lastMoveTime, 1);
 			const inst = lastMoveTime === 0 ? 0 : Math.hypot(e.clientX - lastX, e.clientY - lastY) / dt;
@@ -217,35 +207,28 @@
 			targetDotY = e.clientY;
 			recompute();
 		};
-		const onLeave = () => {
-			visible = false;
+		const onDown = (e: PointerEvent) => {
+			onMove(e);
+			if (visible && e.button === 0) pressed = true;
 		};
-		const onEnter = (e: MouseEvent) => {
-			lastX = e.clientX;
-			lastY = e.clientY;
-			targetDotX = e.clientX;
-			targetDotY = e.clientY;
-			dotX = ringX = e.clientX;
-			dotY = ringY = e.clientY;
-			commit(null, 'free');
-			visible = true;
-			recompute();
+		const onUp = (e: PointerEvent) => {
+			if (e.pointerType === 'mouse' && e.button === 0) pressed = false;
 		};
-		const onDown = (e: MouseEvent) => {
-			if (e.button === 0) pressed = true;
+		const onVisibilityChange = () => {
+			if (document.hidden) onLeave();
 		};
-		const onUp = (e: MouseEvent) => {
-			if (e.button === 0) pressed = false;
-		};
-		window.addEventListener('mousemove', onMove, { passive: true });
-		window.addEventListener('mousedown', onDown);
-		window.addEventListener('mouseup', onUp);
-		document.addEventListener('mouseleave', onLeave);
-		document.addEventListener('mouseenter', onEnter);
+		window.addEventListener('pointermove', onMove, { passive: true });
+		window.addEventListener('pointerdown', onDown);
+		window.addEventListener('pointerup', onUp);
+		window.addEventListener('pointercancel', onLeave);
+		document.documentElement.addEventListener('pointerleave', onLeave);
+		document.documentElement.addEventListener('pointerenter', onMove);
+		window.addEventListener('blur', onLeave);
+		window.addEventListener('pagehide', onLeave);
+		window.addEventListener('contextmenu', onLeave);
+		document.addEventListener('visibilitychange', onVisibilityChange);
 		window.addEventListener('scroll', recompute, { passive: true, capture: true });
 		window.addEventListener('resize', recompute);
-
-		const initialHoverRaf = requestAnimationFrame(commitInitialHover);
 
 		let raf = 0;
 		const tick = () => {
@@ -281,14 +264,18 @@
 		raf = requestAnimationFrame(tick);
 
 		return () => {
-			cancelAnimationFrame(initialHoverRaf);
 			cancelAnimationFrame(raf);
-			detachOutline();
-			window.removeEventListener('mousemove', onMove);
-			window.removeEventListener('mousedown', onDown);
-			window.removeEventListener('mouseup', onUp);
-			document.removeEventListener('mouseleave', onLeave);
-			document.removeEventListener('mouseenter', onEnter);
+			onLeave();
+			window.removeEventListener('pointermove', onMove);
+			window.removeEventListener('pointerdown', onDown);
+			window.removeEventListener('pointerup', onUp);
+			window.removeEventListener('pointercancel', onLeave);
+			document.documentElement.removeEventListener('pointerleave', onLeave);
+			document.documentElement.removeEventListener('pointerenter', onMove);
+			window.removeEventListener('blur', onLeave);
+			window.removeEventListener('pagehide', onLeave);
+			window.removeEventListener('contextmenu', onLeave);
+			document.removeEventListener('visibilitychange', onVisibilityChange);
 			window.removeEventListener('scroll', recompute, true);
 			window.removeEventListener('resize', recompute);
 		};
@@ -313,6 +300,16 @@
 </div>
 
 <style>
+	/* Native and custom cursors share one activation state. Keep the native
+	   cursor until a focused page receives real mouse input, and restore it
+	   whenever the custom cursor hides or unmounts. */
+	:global(html.custom-cursor-active),
+	:global(html.custom-cursor-active *),
+	:global(html.custom-cursor-active *::before),
+	:global(html.custom-cursor-active *::after) {
+		cursor: none !important;
+	}
+
 	@property --ring-press-scale {
 		syntax: '<number>';
 		inherits: false;
@@ -363,12 +360,6 @@
 		background: color-mix(in oklch, var(--accent) 18%, transparent);
 		--ring-press-scale: 0.88;
 	}
-	@media (pointer: coarse) {
-		.cursor-layer {
-			display: none;
-		}
-	}
-
 	/* Outline rendered inside the hovered element so it inherits scroll
 	   and rubber-band overscroll transforms instead of lagging in viewport space.
 	   Morph: starts as a 24px circle at the cursor, expands to fill the element.
@@ -427,10 +418,5 @@
 	:global(.cursor-outline[data-mode='text'].visible) {
 		left: 0;
 		width: 100%;
-	}
-	@media (pointer: coarse) {
-		:global(.cursor-outline) {
-			display: none;
-		}
 	}
 </style>

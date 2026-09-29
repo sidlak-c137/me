@@ -32,13 +32,6 @@
    App-specific base
    ──────────────────────────────────────────────────────────── */
 @layer base {
-	@media (pointer: fine) {
-		html,
-		html * {
-			cursor: none !important;
-		}
-	}
-
 	button,
 	a[role='button'] {
 		user-select: none;
